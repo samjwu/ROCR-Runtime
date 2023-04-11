@@ -40,14 +40,25 @@
 ##
 ################################################################################
 
+cmake_minimum_required ( VERSION 3.7 )
 
+## Clear target dependency data.
+## Needed to allow UI transitions between static and dynamic builds.
+## Need an update to CMake 3.12 to remove this hack. See CMake policy change CMP0073.
+unset ( hsa-runtime64_LIB_DEPENDS CACHE )
+
+## Set core runtime module name and project name.
+set ( CORE_RUNTIME_NAME "hsa-runtime64" )
+set ( CORE_RUNTIME_TARGET "${CORE_RUNTIME_NAME}" )
+set ( CORE_RUNTIME_LIBRARY "lib${CORE_RUNTIME_TARGET}" )
+
+## Set project name
+project( ${CORE_RUNTIME_TARGET} )
 
 ## Utilty functions
 list ( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules" )
 include ( utils )
 include ( hsa_common )
-# Set default libdir to be "lib" for ROCm, distros will override this anyway:
-set(CMAKE_INSTALL_LIBDIR "lib" CACHE STRING "Library install directory")
 include ( GNUInstallDirs )
 
 ## Expose static library option
@@ -74,7 +85,7 @@ if (ROCM_CCACHE_BUILD)
 endif() # if (ROCM_CCACHE_BUILD)
 
 ## Get version strings
-get_version ( "1.7.0" )
+get_version ( "1.8.0" )
 if ( ${ROCM_PATCH_VERSION} )
   set ( VERSION_PATCH ${ROCM_PATCH_VERSION})
 endif()
@@ -84,8 +95,8 @@ set ( PACKAGE_VERSION_STRING "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_COMMIT
 ## Find external dependencies.
 find_package(PkgConfig)
 find_package(LibElf REQUIRED)
-# find_package(hsakmt 1.0 REQUIRED HINTS ${CMAKE_INSTALL_PREFIX} PATHS /opt/rocm)
-# pkg_check_modules(drm REQUIRED IMPORTED_TARGET libdrm)
+find_package(hsakmt 1.0 REQUIRED HINTS ${CMAKE_INSTALL_PREFIX} PATHS /opt/rocm)
+pkg_check_modules(drm REQUIRED IMPORTED_TARGET libdrm)
 
 ## Create the rocr target.
 add_library( ${CORE_RUNTIME_TARGET} "" )
@@ -185,8 +196,8 @@ set ( SRCS core/util/lnx/os_linux.cpp
 target_sources( ${CORE_RUNTIME_TARGET} PRIVATE ${SRCS} )
 
 ## Depend on trap handler target.
-# add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/core/runtime/trap_handler )
-# add_dependencies( ${CORE_RUNTIME_TARGET} amd_trap_handler_v2 )
+add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/core/runtime/trap_handler )
+add_dependencies( ${CORE_RUNTIME_TARGET} amd_trap_handler_v2 )
 
 if ( NOT DEFINED IMAGE_SUPPORT AND CMAKE_SYSTEM_PROCESSOR MATCHES "i?86|x86_64|amd64|AMD64" )
   set ( IMAGE_SUPPORT ON )
@@ -194,7 +205,7 @@ endif()
 set ( IMAGE_SUPPORT ${IMAGE_SUPPORT} CACHE BOOL "Build with image support (default: ON for x86, OFF elsewise)." )
 
 ## Optional image module defintions.
-if(false)
+if(${IMAGE_SUPPORT})
   ## Image definitons - audit!
   target_compile_definitions(${CORE_RUNTIME_TARGET} PRIVATE
     HSA_IMAGE_SUPPORT
@@ -259,7 +270,7 @@ if(false)
 endif()
 
 ## Link dependencies.
-# target_link_libraries ( ${CORE_RUNTIME_TARGET} PRIVATE hsakmt::hsakmt PkgConfig::drm)
+target_link_libraries ( ${CORE_RUNTIME_TARGET} PRIVATE hsakmt::hsakmt PkgConfig::drm)
 target_link_libraries ( ${CORE_RUNTIME_TARGET} PRIVATE elf::elf dl pthread rt )
 
 ## Set the VERSION and SOVERSION values
@@ -401,7 +412,7 @@ configure_file ( ${CMAKE_CURRENT_SOURCE_DIR}/DEBIAN/Binary/prerm.in DEBIAN/Binar
 set ( CPACK_DEBIAN_BINARY_PACKAGE_CONTROL_EXTRA "DEBIAN/Binary/postinst;DEBIAN/Binary/prerm" )
 
 # package dependencies
-set( CPACK_DEBIAN_BINARY_PACKAGE_DEPENDS "libdrm-amdgpu-amdgpu1 | libdrm-amdgpu1, libnuma1")
+set( CPACK_DEBIAN_BINARY_PACKAGE_DEPENDS "libdrm-amdgpu-amdgpu1 | libdrm-amdgpu1, libnuma1, libelf1")
 set( CPACK_DEBIAN_BINARY_PACKAGE_RECOMMENDS "libdrm-amdgpu-amdgpu1")
 set ( CPACK_DEBIAN_DEV_PACKAGE_DEPENDS "hsa-rocr, hsakmt-roct-dev" )
 if ( ROCM_DEP_ROCMCORE )

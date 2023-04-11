@@ -4,6 +4,18 @@ This repository includes the user-mode API interfaces and libraries necessary
 for host applications to launch compute kernels to available HSA ROCm kernel
 agents. Reference source code for the core runtime is also available.
 
+## Documentation
+
+Run the steps below to build documentation locally.
+
+```
+cd docs
+
+pip3 install -r .sphinx/requirements.txt
+
+python3 -m sphinx -T -E -b html -d _build/doctrees -D language=en . _build/html
+```
+
 ## Initial target platform requirements
 
 * CPU: Intel Haswell or newer, Core i5, Core i7, Xeon E3 v4 & v5; Xeon E5 v3
